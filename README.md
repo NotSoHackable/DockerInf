@@ -1,5 +1,5 @@
 # DockerInf
-Docker infrastructure for our main website
+Docker infrastructure for our main NotSoHackable website
 
 (NOTE: THIS IS A REPO FOR A CTF-STYLE CHALLENEGE, WE ALREADY KNOW ABOUT ANY CREDENTIALS LEAKED HERE!)
 
