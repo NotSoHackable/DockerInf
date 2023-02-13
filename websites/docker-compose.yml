@@ -1,0 +1,103 @@
+version: '9001'
+
+networks:
+  traefik:
+    external: true
+  backend:
+
+services:
+
+  db:
+    image: mysql:5.7
+    restart: always
+    command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      MYSQL_DATABASE: wordpress
+      MYSQL_ROOT_PASSWORD: Sup3rS3cur3P@55w0rd!123 #We know this is here
+    volumes:
+      - ./db:/var/lib/mysql
+      - ./init/:/docker-entrypoint-initdb.d
+    networks:
+      - backend
+
+
+  wordpress:
+    build:
+      context: ./wordpress
+    restart: always
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: root
+      WORDPRESS_DB_PASSWORD: Sup3rS3cur3P@55w0rd!123 #We know this is here too
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - ./mainsite/data:/var/www/html
+      - ./init/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini
+    networks:
+      - traefik
+      - backend
+    depends_on:
+      - db
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      # Get the routes from http
+      - "traefik.http.routers.wordpress.rule=Host(`notsohackable.com`) || Host(`www.notsohackable.com`)"
+      - "traefik.http.routers.wordpress.entrypoints=web"
+      # Redirect these routes to https
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.routers.wordpress.middlewares=redirect-to-https@docker"
+      # Get the routes from https
+      - "traefik.http.routers.wordpress-secured.rule=Host(`notsohackable.com`) || Host(`www.notsohackable.com`)"
+      - "traefik.http.routers.wordpress-secured.entrypoints=web-secure"
+      # DNS auth with http challenge
+      - "traefik.http.routers.wordpress-secured.tls=true"
+      - "traefik.http.routers.wordpress-secured.tls.certresolver=myhttpchallenge"
+
+
+  blog:
+    build:
+      context: ./wordpress
+    restart: always
+    privileged: true
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: root
+      WORDPRESS_DB_PASSWORD: Sup3rS3cur3P@55w0rd!123 #Yeah you guessed it, we know this is here too!
+      WORDPRESS_DB_NAME: blog
+    volumes:
+      - ./blog/data:/var/www/html
+      - ./init/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - traefik
+      - backend
+    depends_on:
+        - db
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      # Get the routes from http
+      - "traefik.http.routers.blog.rule=Host(`blog.notsohackable.com`)"
+      - "traefik.http.routers.blog.entrypoints=web"
+      # Redirect these routes to https
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.routers.blog.middlewares=redirect-to-https@docker"
+      # Get the routes from https
+      - "traefik.http.routers.blog-secured.rule=Host(`blog.notsohackable.com`)"
+      - "traefik.http.routers.blog-secured.entrypoints=web-secure"
+      # Apply autentificiation with http challenge
+      - "traefik.http.routers.blog-secured.tls=true"
+      - "traefik.http.routers.blog-secured.tls.certresolver=myhttpchallenge"
